@@ -9,7 +9,3 @@ struct GifInfo {
   var tenorUrl: URL
   var tags: [String]
 }
-
-struct GifResults {
-    var results: [AnyObject]
-}
