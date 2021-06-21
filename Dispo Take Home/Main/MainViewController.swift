@@ -18,7 +18,6 @@ class MainViewController: UIViewController {
     super.viewDidLoad()
     navigationItem.titleView = searchBar
 
-    runSnapKitAuthLayout()
     collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "cell")
     collectionView.delegate = self
     collectionView.dataSource = self
@@ -105,10 +104,6 @@ class MainViewController: UIViewController {
     collectionView.keyboardDismissMode = .onDrag
     return collectionView
   }()
-    
-    private func runSnapKitAuthLayout() {
-        
-    }
 }
 
 // MARK: UISearchBarDelegate
