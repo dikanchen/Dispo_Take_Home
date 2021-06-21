@@ -1,6 +1,7 @@
 import Combine
 import UIKit
 import Kingfisher
+import SnapKit
 
 class MainViewController: UIViewController {
   private var cancellables = Set<AnyCancellable>()
@@ -12,10 +13,12 @@ class MainViewController: UIViewController {
     let apikey = Constants.tenorApiKey
     var searchResults = [SearchResult]()
 
+
   override func viewDidLoad() {
     super.viewDidLoad()
     navigationItem.titleView = searchBar
 
+    runSnapKitAuthLayout()
     collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "cell")
     collectionView.delegate = self
     collectionView.dataSource = self
@@ -85,7 +88,7 @@ class MainViewController: UIViewController {
     // TODO: implement
     //fatalError()
     let flowLayout = UICollectionViewFlowLayout()
-    flowLayout.itemSize = CGSize(width: 98, height: 134)
+    flowLayout.itemSize = CGSize(width: UIScreen.main.bounds.width, height: 110)
     flowLayout.sectionInset = UIEdgeInsets(top: 0, left: 5, bottom: 0, right: 5)
     flowLayout.scrollDirection = UICollectionView.ScrollDirection.vertical
     flowLayout.minimumInteritemSpacing = 0.0
@@ -102,6 +105,10 @@ class MainViewController: UIViewController {
     collectionView.keyboardDismissMode = .onDrag
     return collectionView
   }()
+    
+    private func runSnapKitAuthLayout() {
+        
+    }
 }
 
 // MARK: UISearchBarDelegate
@@ -138,10 +145,33 @@ extension MainViewController: UICollectionViewDelegate, UICollectionViewDataSour
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "cell", for: indexPath)
         cell.contentView.backgroundColor = UIColor.white
-        let gifImageView = UIImageView(frame: cell.contentView.frame)
+        let gifImageView = UIImageView()
+        let gifNameLabel = UILabel()
+        if searchResults[indexPath.item].text == "" {
+            gifNameLabel.text = "No Title"
+        } else {
+            gifNameLabel.text = searchResults[indexPath.item].text
+        }
         gifImageView.contentMode = .scaleAspectFill
         gifImageView.clipsToBounds = true
         cell.contentView.addSubview(gifImageView)
+        cell.contentView.addSubview(gifNameLabel)
+        let imageViewWidth = 100
+        let imageViewHeight = 100
+        let labelHeight = 22
+        gifImageView.snp.makeConstraints { (make) in
+            make.top.equalTo(5)
+            make.leading.equalTo(8)
+            make.width.equalTo(imageViewWidth)
+            make.height.equalTo(imageViewHeight)
+        }
+        
+        gifNameLabel.snp.makeConstraints { (make) in
+            make.top.equalTo(44)
+            make.leading.equalTo(116)
+            make.trailing.equalTo(8)
+            make.height.equalTo(labelHeight)
+        }
         let url = searchResults[indexPath.item].gifUrl
         gifImageView.kf.indicatorType = .activity
         gifImageView.kf.setImage(with: url)

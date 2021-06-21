@@ -68,7 +68,12 @@ class DetailViewController: UIViewController {
         }
         .store(in: &cancellables)
         
-        self.navigationItem.title = imageTitle
+        if imageTitle == "" {
+            self.navigationItem.title = "No Title"
+        } else {
+            self.navigationItem.title = imageTitle
+        }
+        
         runSnapKitAuthLayout()
         
         shareCountLabel.textAlignment = .center
