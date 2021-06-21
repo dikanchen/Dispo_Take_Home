@@ -5,15 +5,17 @@ func mainViewModel(
   cellTapped: AnyPublisher<SearchResult, Never>,
   searchText: AnyPublisher<String, Never>,
   viewWillAppear: AnyPublisher<Void, Never>,
+    emptysearchText: AnyPublisher<String, Never>,
     id: AnyPublisher<String, Never>
 ) -> (
   loadResults: AnyPublisher<[SearchResult], Never>,
   pushDetailView: AnyPublisher<SearchResult, Never>,
+    loadFeaturedResults: AnyPublisher<[SearchResult], Never>,
     gifInfoDetailView: AnyPublisher<[GifInfo], Never>
 ) {
   let api = TenorAPIClient.live
 
-  //let featuredGifs = Empty<[SearchResult], Never>()
+    let featuredGifs = emptysearchText.map { _ in api.featuredGIFs()}.switchToLatest()
 
   let searchResults = searchText
     .map { api.searchGIFs($0) }
@@ -22,6 +24,8 @@ func mainViewModel(
   // show featured gifs when there is no search query, otherwise show search results
   let loadResults = searchResults
     .eraseToAnyPublisher()
+    
+    let loadFeaturedResults = featuredGifs.eraseToAnyPublisher()
 
   let pushDetailView = cellTapped
     .eraseToAnyPublisher()
@@ -32,6 +36,7 @@ func mainViewModel(
   return (
     loadResults: loadResults,
     pushDetailView: pushDetailView,
+    loadFeaturedResults: loadFeaturedResults,
     gifInfoDetailView: gifInfoDetailView
   )
 }

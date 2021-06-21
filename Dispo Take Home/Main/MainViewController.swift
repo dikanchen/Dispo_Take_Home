@@ -8,6 +8,7 @@ class MainViewController: UIViewController {
     private let cellTappedChangedSubject = PassthroughSubject<SearchResult, Never>()
     private let viewWillAppearChangedSubject = PassthroughSubject<Void, Never>()
     private let IDChangedSubject = PassthroughSubject<String, Never>()
+    private let FeatureloadChangedSubject = PassthroughSubject<String, Never>()
     let apikey = Constants.tenorApiKey
     var searchResults = [SearchResult]()
 
@@ -19,10 +20,11 @@ class MainViewController: UIViewController {
     collectionView.delegate = self
     collectionView.dataSource = self
     
-    let (loadResults, pushDetailView, _) = mainViewModel(
+    let (loadResults, pushDetailView, loadFeaturedResults, _) = mainViewModel(
       cellTapped:  cellTappedChangedSubject.eraseToAnyPublisher(), // to compile but not function, you can replace with Empty().eraseToAnyPublisher()
       searchText: searchTextChangedSubject.eraseToAnyPublisher(),
-      viewWillAppear: viewWillAppearChangedSubject.eraseToAnyPublisher(), // to compile but not function, you can replace with Empty().eraseToAnyPublisher()
+        viewWillAppear: viewWillAppearChangedSubject.eraseToAnyPublisher(),
+        emptysearchText: FeatureloadChangedSubject.eraseToAnyPublisher(), // to compile but not function, you can replace with Empty().eraseToAnyPublisher()
         id: IDChangedSubject.eraseToAnyPublisher()
     )
 
@@ -44,12 +46,22 @@ class MainViewController: UIViewController {
         self?.navigationController?.pushViewController(vc, animated: true)
       }
       .store(in: &cancellables)
+    
+    loadFeaturedResults
+        .sink { [weak self] results in
+          // load search results into data source
+          //self?.requestData()
+          self?.searchResults = results
+          print("results are \(results)")
+          self?.collectionView.reloadData()
+        }
+        .store(in: &cancellables)
   }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
-        searchTextChangedSubject.send("")
+        FeatureloadChangedSubject.send("")
     }
 
   override func loadView() {
@@ -96,13 +108,22 @@ class MainViewController: UIViewController {
 
 extension MainViewController: UISearchBarDelegate {
   func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-    searchTextChangedSubject.send(searchText)
+    if searchText.isEmpty {
+        FeatureloadChangedSubject.send("")
+    } else {
+        searchTextChangedSubject.send(searchText)
+    }
     
     collectionView.scrollToItem(at: IndexPath(item: 0, section: 0), at: .top, animated: true)
   }
     
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-        searchTextChangedSubject.send(searchBar.text ?? "")
+        if searchBar.text?.isEmpty == true {
+            FeatureloadChangedSubject.send("")
+        } else {
+            searchTextChangedSubject.send(searchBar.text!)
+        }
+        
         searchBar.resignFirstResponder()
         
         collectionView.scrollToItem(at: IndexPath(item: 0, section: 0), at: .top, animated: true)

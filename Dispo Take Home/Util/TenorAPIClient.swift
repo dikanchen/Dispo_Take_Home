@@ -86,10 +86,11 @@ extension TenorAPIClient {
     },
     featuredGIFs: {
       var components = URLComponents(
-        url: URL(string: "https://g.tenor.com/v1/trending")!,
+        url: URL(string: "https://g.tenor.com/v1/search")!,
         resolvingAgainstBaseURL: false
       )!
       components.queryItems = [
+        .init(name: "q", value: "trending"),
         .init(name: "key", value: Constants.tenorApiKey),
         .init(name: "limit", value: "30"),
       ]

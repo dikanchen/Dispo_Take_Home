@@ -9,6 +9,7 @@ class DetailViewController: UIViewController {
       private let cellTappedChangedSubject = PassthroughSubject<SearchResult, Never>()
       private let viewWillAppearChangedSubject = PassthroughSubject<Void, Never>()
     private let IDChangedSubject = PassthroughSubject<String, Never>()
+    private let FeatureloadChangedSubject = PassthroughSubject<String, Never>()
     var imageURL: URL?
     var imageTitle: String?
     var imageID: String?
@@ -29,10 +30,11 @@ class DetailViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        let (_, _, gifInfoDetailView) = mainViewModel(
+        let (_, _, _, gifInfoDetailView) = mainViewModel(
           cellTapped:  cellTappedChangedSubject.eraseToAnyPublisher(), // to compile but not function, you can replace with Empty().eraseToAnyPublisher()
           searchText: searchTextChangedSubject.eraseToAnyPublisher(),
-          viewWillAppear: viewWillAppearChangedSubject.eraseToAnyPublisher(), // to compile but not function, you can replace with Empty().eraseToAnyPublisher()
+            viewWillAppear: viewWillAppearChangedSubject.eraseToAnyPublisher(),
+            emptysearchText: FeatureloadChangedSubject.eraseToAnyPublisher(), // to compile but not function, you can replace with Empty().eraseToAnyPublisher()
             id: IDChangedSubject.eraseToAnyPublisher()
         )
         
