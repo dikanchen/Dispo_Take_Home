@@ -5,7 +5,7 @@ struct GifInfo {
   var gifUrl: URL
   var text: String
   var shares: Int
-  var backgroundColor: UIColor?
+  var backgroundColor: String?
   var tenorUrl: URL
   var tags: [String]
 }

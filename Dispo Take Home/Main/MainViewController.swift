@@ -7,36 +7,36 @@ class MainViewController: UIViewController {
   private let searchTextChangedSubject = PassthroughSubject<String, Never>()
     private let cellTappedChangedSubject = PassthroughSubject<SearchResult, Never>()
     private let viewWillAppearChangedSubject = PassthroughSubject<Void, Never>()
+    private let IDChangedSubject = PassthroughSubject<String, Never>()
     let apikey = Constants.tenorApiKey
-    var searchTerm = "featured"
-    var gifs = [AnyObject]()
-    static var searchText = ""
-    static var indexItem = 0
+    var searchResults = [SearchResult]()
 
   override func viewDidLoad() {
     super.viewDidLoad()
     navigationItem.titleView = searchBar
-    
-    requestData()
 
     collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "cell")
     collectionView.delegate = self
     collectionView.dataSource = self
     
-    let _ = mainViewModel(
+    let (loadResults, pushDetailView, _) = mainViewModel(
       cellTapped:  cellTappedChangedSubject.eraseToAnyPublisher(), // to compile but not function, you can replace with Empty().eraseToAnyPublisher()
       searchText: searchTextChangedSubject.eraseToAnyPublisher(),
-      viewWillAppear: viewWillAppearChangedSubject.eraseToAnyPublisher() // to compile but not function, you can replace with Empty().eraseToAnyPublisher()
+      viewWillAppear: viewWillAppearChangedSubject.eraseToAnyPublisher(), // to compile but not function, you can replace with Empty().eraseToAnyPublisher()
+        id: IDChangedSubject.eraseToAnyPublisher()
     )
 
-    viewWillAppearChangedSubject
+    loadResults
       .sink { [weak self] results in
         // load search results into data source
-        self?.requestData()
+        //self?.requestData()
+        self?.searchResults = results
+        print("results are \(results)")
+        self?.collectionView.reloadData()
       }
       .store(in: &cancellables)
 
-    cellTappedChangedSubject
+    pushDetailView
       .sink { [weak self] result in
         // push detail view
         print("result is \(result)")
@@ -44,19 +44,12 @@ class MainViewController: UIViewController {
         self?.navigationController?.pushViewController(vc, animated: true)
       }
       .store(in: &cancellables)
-    
-    searchTextChangedSubject
-        .sink { [weak self] result in
-        print(result)
-        MainViewController.searchText = result
-      }
-      .store(in: &cancellables)
   }
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
         
-        viewWillAppearChangedSubject.send()
+        searchTextChangedSubject.send("")
     }
 
   override func loadView() {
@@ -97,63 +90,6 @@ class MainViewController: UIViewController {
     collectionView.keyboardDismissMode = .onDrag
     return collectionView
   }()
-    
-    func requestData()
-      {
-
-        // Define the results upper limit
-        let limit = 50
-
-        // make initial search request for the first 8 items
-        let searchRequest = URLRequest(url: URL(string: String(format: "https://g.tenor.com/v1/search?q=%@&key=%@&limit=%d",
-                                                                 searchTerm,
-                                                                 apikey,
-                                                                 limit))!)
-
-        makeWebRequest(urlRequest: searchRequest, callback: tenorSearchHandler)
-
-        // Data will be loaded by each request's callback
-      }
-
-      /**
-       Async URL requesting function.
-       */
-      func makeWebRequest(urlRequest: URLRequest, callback: @escaping ([String:AnyObject]) -> ())
-      {
-        // Make the async request and pass the resulting json object to the callback
-        let task = URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
-          do {
-            if let jsonResult = try JSONSerialization.jsonObject(with: data!, options: []) as? [String:AnyObject] {
-              // Push the results to our callback
-              callback(jsonResult)
-            }
-          } catch let error as NSError {
-            print(error.localizedDescription)
-          }
-        }
-        task.resume()
-      }
-
-      /**
-       Web response handler for search requests.
-       */
-      func tenorSearchHandler(response: [String:AnyObject])
-      {
-        // Parse the json response
-        let responseGifs = response["results"]!
-        let result = GifResults(results: responseGifs as! [AnyObject])
-        let media = result.results[0]["media"] as! [AnyObject]
-        let gif = media[0]["gif"] as! [String: AnyObject]
-        let url = gif["url"] as? String ?? ""
-
-        // Load the GIFs into your view
-        print("Result GIFS: \(url)")
-        gifs = result.results
-        
-        DispatchQueue.main.async {
-            self.collectionView.reloadData()
-        }
-      }
 }
 
 // MARK: UISearchBarDelegate
@@ -161,13 +97,6 @@ class MainViewController: UIViewController {
 extension MainViewController: UISearchBarDelegate {
   func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
     searchTextChangedSubject.send(searchText)
-    if searchText.isEmpty == true {
-        searchTerm = "featured"
-    } else {
-        searchTerm = searchText
-    }
-    
-    requestData()
     
     collectionView.scrollToItem(at: IndexPath(item: 0, section: 0), at: .top, animated: true)
   }
@@ -176,21 +105,13 @@ extension MainViewController: UISearchBarDelegate {
         searchTextChangedSubject.send(searchBar.text ?? "")
         searchBar.resignFirstResponder()
         
-        if searchBar.text?.isEmpty == true {
-            searchTerm = "featured"
-        } else {
-            searchTerm = searchBar.text ?? "featured"
-        }
-        
-        requestData()
-        
         collectionView.scrollToItem(at: IndexPath(item: 0, section: 0), at: .top, animated: true)
     }
 }
 
 extension MainViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return gifs.count
+        return searchResults.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
@@ -200,22 +121,17 @@ extension MainViewController: UICollectionViewDelegate, UICollectionViewDataSour
         gifImageView.contentMode = .scaleAspectFill
         gifImageView.clipsToBounds = true
         cell.contentView.addSubview(gifImageView)
-        let media = gifs[indexPath.item]["media"] as! [AnyObject]
-        let gif = media[0]["gif"] as! [String: AnyObject]
-        let url = gif["url"] as? String ?? ""
+        let url = searchResults[indexPath.item].gifUrl
         gifImageView.kf.indicatorType = .activity
-        gifImageView.kf.setImage(with: URL(string: url))
+        gifImageView.kf.setImage(with: url)
         return cell
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        let id = gifs[indexPath.item]["id"] as? String ?? ""
-        let media = gifs[indexPath.item]["media"] as! [AnyObject]
-        let gif = media[0]["gif"] as! [String: AnyObject]
-        let url = gif["url"] as? String ?? ""
-        let text = gifs[indexPath.item]["title"] as? String ?? ""
-        let searchResult = SearchResult(id: id, gifUrl: URL(string: url)!, text: text)
-        MainViewController.indexItem = indexPath.item
-        cellTappedChangedSubject.send(searchResult)
+        let id = searchResults[indexPath.item].id
+        let url = searchResults[indexPath.item].gifUrl
+        let text = searchResults[indexPath.item].text
+        let result = SearchResult(id: id, gifUrl: url, text: text)
+        cellTappedChangedSubject.send(result)
     }
 }

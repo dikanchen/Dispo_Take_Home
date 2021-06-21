@@ -4,6 +4,11 @@ import Kingfisher
 import SnapKit
 
 class DetailViewController: UIViewController {
+    private var cancellables = Set<AnyCancellable>()
+    private let searchTextChangedSubject = PassthroughSubject<String, Never>()
+      private let cellTappedChangedSubject = PassthroughSubject<SearchResult, Never>()
+      private let viewWillAppearChangedSubject = PassthroughSubject<Void, Never>()
+    private let IDChangedSubject = PassthroughSubject<String, Never>()
     var imageURL: URL?
     var imageTitle: String?
     var imageID: String?
@@ -11,9 +16,7 @@ class DetailViewController: UIViewController {
     var shareCountLabel = UILabel()
     var backGroundColorLabel = UILabel()
     var tagsLabel = UILabel()
-    let apikey = Constants.tenorApiKey
-    let searchTerm = MainViewController.searchText
-    var gifs = [AnyObject]()
+    var infos = [GifInfo]()
     
   init(searchResult: SearchResult) {
     super.init(nibName: nil, bundle: nil)
@@ -26,6 +29,43 @@ class DetailViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        let (_, _, gifInfoDetailView) = mainViewModel(
+          cellTapped:  cellTappedChangedSubject.eraseToAnyPublisher(), // to compile but not function, you can replace with Empty().eraseToAnyPublisher()
+          searchText: searchTextChangedSubject.eraseToAnyPublisher(),
+          viewWillAppear: viewWillAppearChangedSubject.eraseToAnyPublisher(), // to compile but not function, you can replace with Empty().eraseToAnyPublisher()
+            id: IDChangedSubject.eraseToAnyPublisher()
+        )
+        
+        gifInfoDetailView
+            .sink { [weak self] results in
+            print("detail result is \(results)")
+                self?.infos = results
+                let shareAmount = self?.infos[0].shares
+                let backgroundColor = self?.infos[0].backgroundColor
+                let tags = self?.infos[0].tags
+                DispatchQueue.main.async {
+                    if shareAmount ?? 0 < 2 {
+                        self?.shareCountLabel.text = "\(shareAmount ?? 0) Share"
+                    } else {
+                        self?.shareCountLabel.text = "\(shareAmount ?? 0) Shares"
+                    }
+                    if backgroundColor?.isEmpty == false {
+                        self?.backGroundColorLabel.text = "Background Color: \(backgroundColor ?? "None")"
+                    } else {
+                        self?.backGroundColorLabel.text = "Background Color: None"
+                    }
+                    
+                    if tags?.isEmpty == true {
+                        self?.tagsLabel.text = "Tags: None"
+                    } else {
+                        let tagsName = tags?.joined(separator: ", ")
+                        self?.tagsLabel.text = "Tags: \(tagsName ?? "None")"
+                    }
+                }
+                
+        }
+        .store(in: &cancellables)
+        
         self.navigationItem.title = imageTitle
         runSnapKitAuthLayout()
         
@@ -33,11 +73,15 @@ class DetailViewController: UIViewController {
         backGroundColorLabel.textAlignment = .center
         tagsLabel.textAlignment = .center
         
-        shareCountLabel.text = "14 Shares"
-        backGroundColorLabel.text = "Background Color: None"
-        tagsLabel.text = "Tags: Excited, Funny, Gif"
+        shareCountLabel.text = ""
+        backGroundColorLabel.text = ""
+        tagsLabel.text = ""
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
         
-        requestData()
+        IDChangedSubject.send(imageID!)
     }
 
   override func loadView() {
@@ -90,84 +134,4 @@ class DetailViewController: UIViewController {
             make.top.equalTo(138 + imageViewHeight)
         }
     }
-    
-    func requestData()
-      {
-
-        // Define the results upper limit
-        let limit = 50
-
-        // make initial search request for the first 8 items
-        let searchRequest = URLRequest(url: URL(string: String(format: "https://g.tenor.com/v1/search?q=%@&key=%@&limit=%d",
-                                                                 searchTerm,
-                                                                 apikey,
-                                                                 limit))!)
-
-        makeWebRequest(urlRequest: searchRequest, callback: tenorSearchHandler)
-
-        // Data will be loaded by each request's callback
-      }
-
-      /**
-       Async URL requesting function.
-       */
-      func makeWebRequest(urlRequest: URLRequest, callback: @escaping ([String:AnyObject]) -> ())
-      {
-        // Make the async request and pass the resulting json object to the callback
-        let task = URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
-          do {
-            if let jsonResult = try JSONSerialization.jsonObject(with: data!, options: []) as? [String:AnyObject] {
-              // Push the results to our callback
-              callback(jsonResult)
-            }
-          } catch let error as NSError {
-            print(error.localizedDescription)
-          }
-        }
-        task.resume()
-      }
-
-      /**
-       Web response handler for search requests.
-       */
-      func tenorSearchHandler(response: [String:AnyObject])
-      {
-        // Parse the json response
-        let responseGifs = response["results"]!
-        let result = GifResults(results: responseGifs as! [AnyObject])
-        /*let media = result.results[0]["media"] as! [AnyObject]
-        let gif = media[0]["gif"] as! [String: AnyObject]
-        let url = gif["url"] as? String ?? ""
-
-        // Load the GIFs into your view
-        print("Result GIFS: \(url)")
-        gifs = result.results
-        
-        DispatchQueue.main.async {
-            //self.collectionView.reloadData()
-        }*/
-        let shareAmount = result.results[MainViewController.indexItem]["shares"] as? Int ?? 0
-        let backgroundColor = result.results[MainViewController.indexItem]["bg_color"] as? String ?? ""
-        let tags = result.results[MainViewController.indexItem]["tags"] as? [String] ?? []
-        
-        DispatchQueue.main.async {
-            if shareAmount < 2 {
-                self.shareCountLabel.text = "\(shareAmount) Share"
-            } else {
-                self.shareCountLabel.text = "\(shareAmount) Shares"
-            }
-            if backgroundColor.isEmpty == false {
-                self.backGroundColorLabel.text = "Background Color: \(backgroundColor)"
-            } else {
-                self.backGroundColorLabel.text = "Background Color: None"
-            }
-            
-            if tags.isEmpty == true {
-                self.tagsLabel.text = "Tags: None"
-            } else {
-                let tagsName = tags.joined(separator: ", ")
-                self.tagsLabel.text = "Tags: \(tagsName)"
-            }
-        }
-      }
 }
